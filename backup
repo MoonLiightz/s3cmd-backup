@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+### Configuration
+
+# Path to the folder which should be saved
+BACKUP_PATH="/root"
+
+# Name of the folder which should be saved
+BACKUP_FOLDER="testfolder"
+
+# Name of the backup (datum will be added automatically)
+BACKUP_NAME="backup-of-testfolder"
+
+# Name of the s3 bucket where the backups will be stored
+S3_BUCKET_NAME="my-backup-bucket"
+
+# Path in the s3 bucket where the backups will be stored
+S3_BUCKET_PATH="/backups"
+
+# Compression with zip or tar
+COMPRESSION="zip"
+
+# Temporary storage
+TMP_PATH="/tmp"
+
+
+
+###############################################################################
+###############################################################################
+############################   STOP EDITING HERE   ############################
+###############################################################################
+###############################################################################
+
+
+case "$1" in
+    backup)
+        echo "Create Backup..."
+        full_backup_name="$BACKUP_NAME"_"$(date +%d_%m_%Y_%H_%M_%S)"
+        cd "$BACKUP_PATH"
+        
+        if [ $COMPRESSION = "zip" ]; then
+            check_if_requirements_are_available zip
+            full_backup_name="$full_backup_name".zip
+            zip -r "$TMP_PATH/$full_backup_name" "$BACKUP_FOLDER"
+        elif [ $COMPRESSION = "tar" ]; then
+            check_if_requirements_are_available tar
+            full_backup_name="$full_backup_name".tar.gz
+            tar cfz "$TMP_PATH/$full_backup_name" "$BACKUP_FOLDER"
+        else
+            echo "Only zip or tar are valid."
+            exit 1
+        fi
+        
+        echo "Upload Backup..."
+        s3cmd put "$TMP_PATH/$full_backup_name" "s3://$S3_BUCKET_NAME$S3_BUCKET_PATH/$full_backup_name"
+
+        echo "Clear tmp..."
+        rm -f "$TMP_PATH/$full_backup_name"
+    ;;
+
+    list)
+        s3cmd ls "s3://$S3_BUCKET_NAME$S3_BUCKET_PATH/"
+    ;;
+
+    download)
+        if [ -n "$2" ]; then
+            s3cmd get "s3://$S3_BUCKET_NAME$S3_BUCKET_PATH/${2}"
+        else
+            echo "Specify a file you want to download."
+            echo "Example: ${0} ${1} test.zip"
+            echo "Or list your backups with: ${0} list"
+        fi
+    ;;
+
+    *)
+        echo "Use: ${0} {backup|list|download}"
+        exit 2
+    ;;
+esac
+
+exit 0
