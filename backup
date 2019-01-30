@@ -31,11 +31,19 @@ TMP_PATH="/tmp"
 ###############################################################################
 ###############################################################################
 
+check_if_requirements_are_available()
+{
+    if ! hash $1 2>/dev/null
+    then
+        echo "$1 command not found. You have to install $1 first."
+        exit 1
+    fi
+}
 
 case "$1" in
-    backup)
+    create|start|backup)
         echo "Create Backup..."
-        full_backup_name="$BACKUP_NAME"_"$(date +%d_%m_%Y_%H_%M_%S)"
+        full_backup_name="$BACKUP_NAME"_"$(date +%Y-%m-%d_%H-%M-%S)"
         cd "$BACKUP_PATH"
         
         if [ $COMPRESSION = "zip" ]; then
@@ -73,7 +81,7 @@ case "$1" in
     ;;
 
     *)
-        echo "Use: ${0} {backup|list|download}"
+        echo "Use: ${0} {create|list|download}"
         exit 2
     ;;
 esac
